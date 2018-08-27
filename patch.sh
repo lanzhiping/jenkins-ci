@@ -1,13 +1,13 @@
 #!/bin/bash
 
-git checkout release/v$1
-CURRENT_VERSION=''
-NEXT_VERSION=''
-PATCH_NUMBER=0
-
 function is_branch_synced() {
+    git checkout master
     git fetch origin master:master
+    git pull --reb origin master
+
+    git checkout release/v$1
     git fetch origin release/v$1:release/v$1
+    git pull --reb origin release/v$1
 
     if [ x"$(git rev-parse master)" = x"$(git rev-parse origin/master)" ]
     then
@@ -26,13 +26,16 @@ function is_branch_synced() {
 }
 
 function read_write_version() {
+    git checkout release/v$1
+
     while IFS='' read -r LINE || [[ -n "$LINE" ]]; do
         if [[ $LINE =~ version.* ]]
         then
             CURRENT_VERSION=$(echo $LINE| cut -d'"' -f 4)
-            PATCH_NUMBER=$(echo $CURRENT_VERSION| cut -d'.' -f 3)
-            NEXT_VERSION="${CURRENT_VERSION/%$PATCH_NUMBER/$((PATCH_NUMBER+1))}"
-            PATCH_NUMBER=$((PATCH_NUMBER+1))
+            local patchNum=$(echo $CURRENT_VERSION| cut -d'.' -f 3)
+
+            NEXT_VERSION="${CURRENT_VERSION/%$patchNum/$((patchNum+1))}"
+
             echo "${LINE/$CURRENT_VERSION/$NEXT_VERSION}"
         else
             echo "$LINE"
@@ -46,7 +49,6 @@ function read_write_version() {
         exit 1
     fi
     echo current version: $CURRENT_VERSION
-    echo patch: $PATCH_NUMBER
     echo next version: $NEXT_VERSION
 }
 
@@ -79,18 +81,13 @@ function sync_local_to_remote() {
     git push
 }
 
-function build_and_deploy() {
-    git checkout release/v$1
-    npm run build
-    sh ./scripts/deploy.sh sit
-    git checkout master
-    npm run build
-    sh ./scripts/deploy.sh dev
-}
-
+# main process
 is_branch_synced $1
+
+CURRENT_VERSION=''
+NEXT_VERSION=''
 read_write_version
 commit_version_patch
+
 pick_new_commits_from_release $1
 sync_local_to_remote $1
-build_and_deploy $1
