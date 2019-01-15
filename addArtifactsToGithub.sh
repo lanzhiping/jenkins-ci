@@ -1,7 +1,3 @@
-# add artifacts to the release
-# note that we expect artifacts for each platform to be located in separate sub-dirs,
-# and we add these zipped sub-dirs to the release
-
 GH_OWNER=$1
 GH_REPO=$2
 GH_ACCESS_TOKEN=$3
